@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPM Donations | Secure GPay</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --gpm-red: #ff4d4d; }
+        body { background-color: #f8f9fa; font-family: sans-serif; }
+        .donation-card {
+            max-width: 500px; margin: 40px auto; padding: 40px;
+            background: white; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 5px solid var(--gpm-red);
+        }
+        #statusSection { display: none; text-align: center; }
+        .payment-loader { margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="donation-card">
+        <div id="formSection">
+            <h2 class="text-center mb-2">Secure Donation</h2>
+            <p class="text-center text-muted mb-4">Supporting: <span id="ngoDisplay" class="text-danger fw-bold">...</span></p>
+            
+            <form id="donationForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Donation Amount (INR)</label>
+                    <input type="number" class="form-control form-control-lg" id="amount" placeholder="Enter amount" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Your Email</label>
+                    <input type="email" class="form-control" id="donorEmail" readonly>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Type of Support</label>
+                    <select class="form-select" id="supportType">
+                        <option value="Financial Aid">Financial Aid</option>
+                        <option value="Medical Supplies">Medical Supplies</option>
+                        <option value="Food & Water">Food & Water Kits</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-danger w-100 py-3 fw-bold">Pay with Google Pay</button>
+            </form>
+        </div>
+
+        <div id="statusSection">
+            <h3 class="fw-bold mb-1 text-primary">Payment Initiated</h3>
+            <p class="text-muted">Pay: <strong class="text-dark" id="displayAmount">₹0</strong></p>
+            
+            <div class="payment-loader">
+                <div class="spinner-border text-danger" role="status" style="width: 3rem; height: 3rem;"></div>
+                <p class="mt-3">Please complete the payment in GPay app...</p>
+            </div>
+
+            <div class="alert alert-warning small">
+                After payment is successful, return here to download your certificate.
+            </div>
+            
+            <button onclick="recordAndDownload()" class="btn btn-success w-100 mt-2 py-3 fw-bold">Click AFTER Paying to Get Certificate</button>
+            <button onclick="location.reload()" class="btn btn-link text-muted mt-2">Cancel / Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbwcO-QW3soMmsjEwdPNC01g7hoEhl7zONgpgyTd1I_oOClG1JDEEB9TJ09NWXblO2Qr/exec'; // PASTE YOUR URL HERE
+
+    window.onload = function() {
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById('ngoDisplay').innerText = (params.get('ngo') || "General Relief").replace(/([A-Z])/g, ' $1').trim();
+        document.getElementById('donorEmail').value = localStorage.getItem('currentUserEmail') || "guest@gpm.com";
+    };
+
+    // TRIGGER GPAY
+    document.getElementById('donationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const amount = document.getElementById('amount').value;
+        const upiId = "zeromgowthamoksbi"; // REPLACE WITH YOUR ACTUAL UPI ID
+        
+        // This is the "Trigger" - It opens GPay with the pre-filled amount
+        const upiUrl = `upi://pay?pa=${upiId}&pn=GPMDonations&am=${amount}&cu=INR&tn=Donation`;
+
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('statusSection').style.display = 'block';
+        document.getElementById('displayAmount').innerText = `₹${amount}`;
+
+        window.location.href = upiUrl; 
+    });
+
+    async function recordAndDownload() {
+        const btn = event.target;
+        const amount = document.getElementById('amount').value;
+        const email = document.getElementById('donorEmail').value;
+        const ngo = document.getElementById('ngoDisplay').innerText;
+        const typeValue = document.getElementById('supportType').value;
+        const txnId = "GPM-TXN-" + Math.floor(Math.random() * 1000000);
+
+        btn.innerText = "⏳ Recording Donation...";
+        btn.disabled = true;
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'recordDonation');
+        formData.append('email', email);
+        formData.append('ngo', ngo);
+        formData.append('amount', amount);
+        formData.append('type', typeValue);
+        formData.append('utr', txnId); // Internal tracking ID
+
+        try {
+            // Send to Google Sheets
+            await fetch(scriptURL, { method: 'POST', body: formData, mode: 'no-cors' });
+            
+            alert("✅ Payment Logged Successfully!");
+            generateCertificate(txnId, new Date().toLocaleDateString(), email, amount, ngo);
+        } catch (error) {
+            console.error(error);
+            generateCertificate(txnId, new Date().toLocaleDateString(), email, amount, ngo);
+        }
+    }
+
+    function generateCertificate(utr, date, email, amount, ngo) {
+        const certWindow = window.open('', '_blank');
+        certWindow.document.write(`
+            <html>
+            <head><title>Certificate</title><style>
+                body { font-family: 'Georgia', serif; text-align: center; padding: 50px; }
+                .box { border: 10px double #ff4d4d; padding: 40px; }
+                .header { color: #ff4d4d; font-size: 35px; font-weight: bold; }
+                .amount { font-size: 40px; margin: 20px; font-weight: bold; }
+            </style></head>
+            <body onload="window.print()">
+                <div class="box">
+                    <div class="header">CERTIFICATE OF APPRECIATION</div>
+                    <p>This certifies that <b>${email}</b></p>
+                    <p>has donated</p>
+                    <div class="amount">₹${amount}</div>
+                    <p>to <b>${ngo}</b> for Disaster Relief.</p>
+                    <hr>
+                    <p><small>Transaction ID: ${utr} | Date: ${date}</small></p>
+                    <p><b>GPM OFFICIAL VERIFIED</b></p>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+</script>
+</body>
+</html>
