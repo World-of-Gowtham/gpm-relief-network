@@ -93,7 +93,7 @@
                 <button type="submit" class="btn btn-primary w-100 mt-2">Register Now</button>
             </form>
             <div id="responseMessage" class="mt-3 text-center fw-bold"></div>
-            <p class="text-center mt-3 mb-0 small">Already have an account? <a href="login.html" class="text-danger">Login here</a></p>
+            <p class="text-center mt-3 mb-0 small">Already have an account? <a href="index.html" class="text-danger">Login here</a></p>
         </div>
     </div>
 </div>
@@ -120,7 +120,7 @@
                     msg.style.color = "green";
                     form.reset();
                     // Redirect to login after 2 seconds
-                    setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+                    setTimeout(() => { window.location.href = 'index.html'; }, 2000);
                 } else {
                     msg.innerHTML = "❌ Error: " + data;
                     msg.style.color = "red";
